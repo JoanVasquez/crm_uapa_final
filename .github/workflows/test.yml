@@ -9,6 +9,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # <-- Add this line to specify the environment name from your screenshot:
+    environment: .env.test
 
     steps:
       - name: Checkout Code
@@ -17,7 +19,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Create .env.test file from secrets
+      - name: Create .env.test file from environment secrets
         run: |
           cat <<EOF > .env.test
           DB_NAME=${{ secrets.DB_NAME }}

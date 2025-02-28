@@ -8,9 +8,9 @@ from app.utils.cache_util import cache
 from app.utils.cache_util_model import CacheModel
 from app.utils.logger import get_logger
 from app.utils.deserialize_instance import deserialize_instance
+from app.errors import BaseAppException, ResourceNotFoundError
 
 logger = get_logger(__name__)
-
 T = TypeVar("T")
 
 
@@ -42,7 +42,6 @@ class GenericRepository(ABC):
         try:
             self.session.add(entity)
             self.session.commit()
-
             if cache_model:
                 data = json.dumps(model_to_dict(entity))
                 cache.set(cache_model.key, data,
@@ -50,9 +49,12 @@ class GenericRepository(ABC):
             return entity
         except Exception as error:
             self.session.rollback()
-            logger.error("[GenericRepository] Error creating entity: %s",
-                         error, exc_info=True)
-            return None
+            logger.error(
+                "[GenericRepository] Error creating entity: %s", error, exc_info=True)
+            if isinstance(error, BaseAppException):
+                raise error
+            raise BaseAppException(
+                "Error creating entity", details=str(error)) from error
 
     def find_entity_by_id(
         self,
@@ -65,21 +67,23 @@ class GenericRepository(ABC):
                 if cached:
                     data = json.loads(cached)
                     return deserialize_instance(self.model, data)
-            # Using Session.get() if available, or fallback to query/filter_by.
             entity = self.session.get(self.model, id)
             if not entity:
                 logger.info(
                     "[GenericRepository] Entity with id %s not found", id)
-                raise Exception("Entity not found")
+                raise ResourceNotFoundError(f"Entity with id {id} not found")
             if cache_model:
                 data = json.dumps(model_to_dict(entity))
                 cache.set(cache_model.key, data,
                           timeout=cache_model.expiration)
             return entity
         except Exception as error:
-            logger.error("[GenericRepository] Error finding entity: %s",
-                         error, exc_info=True)
-            return None
+            logger.error(
+                "[GenericRepository] Error finding entity: %s", error, exc_info=True)
+            if isinstance(error, BaseAppException):
+                raise error
+            raise BaseAppException(
+                "Error finding entity", details=str(error)) from error
 
     def update_entity(
         self,
@@ -88,20 +92,18 @@ class GenericRepository(ABC):
         cache_model: Optional[CacheModel] = None,
     ) -> Optional[T]:
         try:
-            # Update directly via query
             query = self.session.query(self.model).filter_by(id=id)
             updated_count = query.update(updated_data)
             if updated_count == 0:
                 logger.error(
                     "[GenericRepository] Entity with id %s not found for update", id)
-                raise Exception(f"Entity with id {id} not found")
+                raise ResourceNotFoundError(f"Entity with id {id} not found")
             self.session.commit()
-
             updated_entity = self.find_entity_by_id(id)
             if not updated_entity:
                 logger.error(
                     "[GenericRepository] Updated entity with id %s not found", id)
-                raise Exception(f"Entity with id {id} not found")
+                raise ResourceNotFoundError(f"Entity with id {id} not found")
             if cache_model:
                 data = json.dumps(model_to_dict(updated_entity))
                 cache.set(cache_model.key, data,
@@ -109,9 +111,12 @@ class GenericRepository(ABC):
             return updated_entity
         except Exception as error:
             self.session.rollback()
-            logger.error("[GenericRepository] Error updating entity: %s",
-                         error, exc_info=True)
-            return None
+            logger.error(
+                "[GenericRepository] Error updating entity: %s", error, exc_info=True)
+            if isinstance(error, BaseAppException):
+                raise error
+            raise BaseAppException(
+                "Error updating entity", details=str(error)) from error
 
     def delete_entity(
         self,
@@ -124,16 +129,19 @@ class GenericRepository(ABC):
             if deleted_count == 0:
                 logger.error(
                     "[GenericRepository] Failed to delete entity with id %s", id)
-                raise Exception(f"Entity with id {id} not found")
+                raise ResourceNotFoundError(f"Entity with id {id} not found")
             self.session.commit()
             if cache_model:
                 cache.delete(cache_model.key)
             return True
         except Exception as error:
             self.session.rollback()
-            logger.error("[GenericRepository] Error deleting entity: %s",
-                         error, exc_info=True)
-            return False
+            logger.error(
+                "[GenericRepository] Error deleting entity: %s", error, exc_info=True)
+            if isinstance(error, BaseAppException):
+                raise error
+            raise BaseAppException(
+                "Error deleting entity", details=str(error)) from error
 
     def get_all_entities(
         self,
@@ -144,25 +152,20 @@ class GenericRepository(ABC):
                 cached = cache.get(cache_model.key)
                 if cached:
                     data_list = json.loads(cached)
-                    return [
-                        deserialize_instance(self.model, data)
-                        for data in data_list
-                    ]
+                    return [deserialize_instance(self.model, data) for data in data_list]
             entities = self.session.query(self.model).all()
             if cache_model:
                 data_list = [model_to_dict(e) for e in entities]
-                cache.set(
-                    cache_model.key,
-                    json.dumps(data_list),
-                    timeout=cache_model.expiration,
-                )
+                cache.set(cache_model.key, json.dumps(data_list),
+                          timeout=cache_model.expiration)
             return entities
         except Exception as error:
             logger.error(
-                "[GenericRepository] Error retrieving all entities: %s",
-                error, exc_info=True,
-            )
-            return []
+                "[GenericRepository] Error retrieving all entities: %s", error, exc_info=True)
+            if isinstance(error, BaseAppException):
+                raise error
+            raise BaseAppException(
+                "Error retrieving all entities", details=str(error)) from error
 
     def get_entities_with_pagination(
         self,
@@ -175,22 +178,21 @@ class GenericRepository(ABC):
                 cached = cache.get(cache_model.key)
                 if cached:
                     return json.loads(cached)
-
             query = self.session.query(self.model)
             count = query.count()
             data = query.offset(skip).limit(take).all()
             result = {"data": data, "count": count}
-
             if cache_model:
                 serializable_data = [model_to_dict(e) for e in data]
-                cache_data = json.dumps({
-                    "data": serializable_data,
-                    "count": count
-                })
+                cache_data = json.dumps(
+                    {"data": serializable_data, "count": count})
                 cache.set(cache_model.key, cache_data,
                           timeout=cache_model.expiration)
             return result
         except Exception as error:
-            logger.error("[GenericRepository] Error in pagination: %s",
-                         error, exc_info=True)
-            return {"data": [], "count": 0}
+            logger.error(
+                "[GenericRepository] Error in pagination: %s", error, exc_info=True)
+            if isinstance(error, BaseAppException):
+                raise error
+            raise BaseAppException("Error in pagination",
+                                   details=str(error)) from error

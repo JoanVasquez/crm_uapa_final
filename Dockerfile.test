@@ -1,0 +1,26 @@
+FROM python:3.11-alpine
+LABEL maintainer="joanvasquez"
+
+ENV PYTHONUNBUFFERED=1
+
+RUN apk add --no-cache curl build-base
+
+ENV POETRY_VERSION=1.2.1
+RUN curl -sSL https://install.python-poetry.org | python3 - --version $POETRY_VERSION
+ENV PATH="/root/.local/bin:$PATH"
+
+WORKDIR /app
+
+# Copy your Poetry files and install (with dev)
+COPY pyproject.toml poetry.lock* ./
+RUN poetry config virtualenvs.create false
+RUN poetry install --with dev --no-interaction --no-ansi
+
+# Copy your app code
+COPY ./app /app
+
+# Copy .env.test to the container root (/) or to /app—your choice
+COPY .env.test /.env.test
+
+# Default command: run pytest
+CMD ["pytest", "--maxfail=1", "--disable-warnings"]

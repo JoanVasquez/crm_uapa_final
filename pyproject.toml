@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "cmr_python_simple"
+version = "0.1.0"
+description = "Your project description"
+authors = ["Your Name <you@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "0.109.0"
+SQLAlchemy = "2.0.0"
+uvicorn = "0.22.0"
+drf-spectacular = ">=0.15.1,<0.16"
+python-json-logger = ">=2.0.7,<2.1"
+boto3 = ">=1.26.0,<1.27"
+redis = ">=4.5.0"
+
+[tool.poetry.dev-dependencies]
+flake8 = ">=3.9.2"
+autoflake = "^2.3.1"
+yapf = "*"
+isort = "*"
+pytest = "7.3.0"
+
+[tool.poetry.group.dev.dependencies]
+python-dotenv = "^1.0.1"
+

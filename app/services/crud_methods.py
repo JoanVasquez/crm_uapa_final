@@ -5,7 +5,6 @@ T = TypeVar("T")
 
 
 class ICRUD(ABC, Generic[T]):
-
     @abstractmethod
     def save(self, entity: T) -> Optional[T]:
         """Save an entity and return it or None."""

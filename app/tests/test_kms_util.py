@@ -1,21 +1,25 @@
+"""
+Module for testing the KMS utility functions.
+"""
+
 import base64
 import unittest
 from unittest.mock import patch
 
 from botocore.exceptions import ClientError
 
-import app.utils.kms_util as kms_util
+from app.utils import kms_util
 
 
 class TestKMSUtil(unittest.TestCase):
+    """Test cases for the KMS utility functions."""
 
     @patch("app.utils.kms_util.kms_client")
     def test_encrypt_password_success(self, mock_kms_client):
+        """Test successful encryption of a password."""
         # Prepare the fake response for a successful encryption.
         fake_ciphertext = b"encrypted-bytes"
-        mock_kms_client.encrypt.return_value = {
-            "CiphertextBlob": fake_ciphertext
-        }
+        mock_kms_client.encrypt.return_value = {"CiphertextBlob": fake_ciphertext}
         password = "my_password"
         kms_key_id = "fake-key-id"
 
@@ -28,10 +32,12 @@ class TestKMSUtil(unittest.TestCase):
 
         # Verify that kms_client.encrypt was called with proper parameters.
         mock_kms_client.encrypt.assert_called_with(
-            KeyId=kms_key_id, Plaintext=password.encode("utf-8"))
+            KeyId=kms_key_id, Plaintext=password.encode("utf-8")
+        )
 
     @patch("app.utils.kms_util.kms_client")
     def test_encrypt_password_no_ciphertext_blob(self, mock_kms_client):
+        """Test encryption failure when response lacks 'CiphertextBlob'."""
         # Simulate a response that does not contain CiphertextBlob.
         mock_kms_client.encrypt.return_value = {}
         password = "my_password"
@@ -43,16 +49,13 @@ class TestKMSUtil(unittest.TestCase):
 
     @patch("app.utils.kms_util.kms_client")
     def test_encrypt_password_client_error(self, mock_kms_client):
+        """Test encryption failure when kms_client.encrypt raises a ClientError."""
         # Simulate a ClientError being raised by kms_client.encrypt.
-        error_response = {
-            "Error": {
-                "Code": "TestError",
-                "Message": "Test failure"
-            }
-        }
+        error_response = {"Error": {"Code": "TestError", "Message": "Test failure"}}
         operation_name = "Encrypt"
         mock_kms_client.encrypt.side_effect = ClientError(
-            error_response, operation_name)
+            error_response, operation_name
+        )
 
         password = "my_password"
         kms_key_id = "fake-key-id"
@@ -65,12 +68,12 @@ class TestKMSUtil(unittest.TestCase):
 
     @patch("app.utils.kms_util.kms_client")
     def test_decrypt_password_success(self, mock_kms_client):
+        """Test successful decryption of a password."""
         # Create a fake plaintext and corresponding ciphertext.
         fake_plaintext = b"decrypted_password"
         # First encode fake ciphertext using base64 (simulate the input string)
         fake_ciphertext_blob = b"encrypted-bytes"
-        encrypted_password = base64.b64encode(fake_ciphertext_blob).decode(
-            "utf-8")
+        encrypted_password = base64.b64encode(fake_ciphertext_blob).decode("utf-8")
 
         # When decrypt is called, return the fake plaintext.
         mock_kms_client.decrypt.return_value = {"Plaintext": fake_plaintext}
@@ -84,15 +87,15 @@ class TestKMSUtil(unittest.TestCase):
 
         # Verify that kms_client.decrypt was called with the proper parameters.
         mock_kms_client.decrypt.assert_called_with(
-            KeyId=kms_key_id,
-            CiphertextBlob=base64.b64decode(encrypted_password))
+            KeyId=kms_key_id, CiphertextBlob=base64.b64decode(encrypted_password)
+        )
 
     @patch("app.utils.kms_util.kms_client")
     def test_decrypt_password_no_plaintext(self, mock_kms_client):
+        """Test decryption failure when response lacks 'Plaintext'."""
         # Simulate a response that does not contain Plaintext.
         fake_ciphertext_blob = b"encrypted-bytes"
-        encrypted_password = base64.b64encode(fake_ciphertext_blob).decode(
-            "utf-8")
+        encrypted_password = base64.b64encode(fake_ciphertext_blob).decode("utf-8")
 
         mock_kms_client.decrypt.return_value = {}
         kms_key_id = "fake-key-id"
@@ -103,20 +106,16 @@ class TestKMSUtil(unittest.TestCase):
 
     @patch("app.utils.kms_util.kms_client")
     def test_decrypt_password_client_error(self, mock_kms_client):
+        """Test decryption failure when kms_client.decrypt raises a ClientError."""
         # Simulate a ClientError being raised by kms_client.decrypt.
-        error_response = {
-            "Error": {
-                "Code": "TestError",
-                "Message": "Test failure"
-            }
-        }
+        error_response = {"Error": {"Code": "TestError", "Message": "Test failure"}}
         operation_name = "Decrypt"
         mock_kms_client.decrypt.side_effect = ClientError(
-            error_response, operation_name)
+            error_response, operation_name
+        )
 
         fake_ciphertext_blob = b"encrypted-bytes"
-        encrypted_password = base64.b64encode(fake_ciphertext_blob).decode(
-            "utf-8")
+        encrypted_password = base64.b64encode(fake_ciphertext_blob).decode("utf-8")
         kms_key_id = "fake-key-id"
 
         with self.assertRaises(Exception) as context:

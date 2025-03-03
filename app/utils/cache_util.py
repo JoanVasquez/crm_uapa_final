@@ -3,6 +3,7 @@ from typing import Optional
 
 import redis.asyncio as redis
 
+from app.errors import BaseAppException
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -22,10 +23,11 @@ class Cache:
         """
         try:
             await self.client.set(key, value, ex=ttl)
-        except Exception as e:
-            logger.error(f"Redis set error for key '{key}': {e}",
-                         exc_info=True)
-            raise
+        except Exception as error:
+            logger.error(f"Redis set error for key '{key}': {error}", exc_info=True)
+            raise BaseAppException(
+                f"Redis set error for key '{key}': {error}"
+            ) from error
 
     async def get(self, key: str) -> Optional[str]:
         """
@@ -35,8 +37,7 @@ class Cache:
             value = await self.client.get(key)
             return value.decode("utf-8") if value is not None else None
         except Exception as e:
-            logger.error(f"Redis get error for key '{key}': {e}",
-                         exc_info=True)
+            logger.error(f"Redis get error for key '{key}': {e}", exc_info=True)
             raise
 
     async def delete(self, key: str) -> None:
@@ -45,10 +46,11 @@ class Cache:
         """
         try:
             await self.client.delete(key)
-        except Exception as e:
-            logger.error(f"Redis delete error for key '{key}': {e}",
-                         exc_info=True)
-            raise
+        except Exception as error:
+            logger.error(f"Redis delete error for key '{key}': {error}", exc_info=True)
+            raise BaseAppException(
+                f"Redis delete error for key '{key}': {error}"
+            ) from error
 
 
 async def init_cache() -> Cache:
@@ -66,8 +68,9 @@ async def init_cache() -> Cache:
             redis_url = os.environ.get("REDIS_URL")
 
         if not redis_url:
-            raise Exception(
-                "Environment variable 'REDIS_URL | REDIS_URL_TEST' is not set")
+            raise BaseAppException(
+                "Environment variable 'REDIS_URL | REDIS_URL_TEST' is not set"
+            )
         logger.info(f"[init_cache] Using Redis URL: {redis_url}")
         client = redis.Redis.from_url(redis_url)
         await client.ping()
@@ -75,11 +78,11 @@ async def init_cache() -> Cache:
         return Cache(client)
     except Exception as e:
         logger.error(f"Failed to initialize Redis client: {e}", exc_info=True)
-        raise Exception(f"Failed to initialize Redis client: {e}") from e
+        raise BaseAppException(f"Failed to initialize Redis client: {e}") from e
 
 
 # Global variable for the cache instance
-cache: Cache = None  # type: ignore
+cache: Optional[Cache] = None
 
 
 async def _initialize_cache():

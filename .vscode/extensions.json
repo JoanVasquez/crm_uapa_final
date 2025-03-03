@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-toolsai.jupyter",
+    "ms-python.flake8",
+    "ms-python.isort",
+    "ms-python.black-formatter",
+    "SonarSource.sonarlint-vscode"
+  ],
+  "unwantedRecommendations": []
+}

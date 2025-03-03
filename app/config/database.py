@@ -1,17 +1,20 @@
+"""
+This module handles database configuration and connections for the application.
+"""
+
 import os
 import sys
+
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import declarative_base, sessionmaker
+
 from app.utils.ssm_util import get_cached_parameter
 
 # If we see 'test' in sys.argv (e.g. 'python -m pytest') OR DJANGO_ENV='test',
 # use SQLite for testing/local dev.
 if ("test" in sys.argv) or (os.environ.get("DJANGO_ENV") == "test"):
     DATABASE_URL = "sqlite:///./test.db"
-    engine = create_engine(
-        DATABASE_URL,
-        connect_args={"check_same_thread": False}
-    )
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 else:
     # Production / staging environment uses MySQL.
     print("Using MySQL for production.")

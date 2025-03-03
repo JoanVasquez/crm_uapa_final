@@ -2,10 +2,9 @@ import json
 import unittest
 from unittest.mock import MagicMock, patch
 
-from app.repositories.user_repository import UserRepository
-from app.models import User
-from app.utils.cache_util_model import CacheModel
 from app.errors import BaseAppException, ResourceNotFoundError
+from app.repositories.user_repository import UserRepository
+from app.utils.cache_util_model import CacheModel
 
 
 class DummyUser:
@@ -20,7 +19,11 @@ class DummyUser:
 
     def __eq__(self, other):
         if isinstance(other, DummyUser):
-            return self.id == other.id and self.username == other.username and self.email == other.email
+            return (
+                self.id == other.id
+                and self.username == other.username
+                and self.email == other.email
+            )
         return False
 
 
@@ -42,7 +45,9 @@ class TestUserRepository(unittest.TestCase):
     @patch("app.repositories.user_repository.deserialize_instance")
     @patch("app.repositories.user_repository.cache")
     @patch("app.repositories.user_repository.SessionLocal")
-    def test_find_user_by_username_cache_hit(self, mock_session_local, mock_cache, mock_deserialize_instance):
+    def test_find_user_by_username_cache_hit(
+        self, mock_session_local, mock_cache, mock_deserialize_instance
+    ):
         """
         When the cache returns a value, the repository should use deserialize_instance
         to create and return a user, and the database query should not be triggered.
@@ -51,20 +56,17 @@ class TestUserRepository(unittest.TestCase):
         mock_cache.get.return_value = cached_data
 
         # Configure deserialize_instance to return our dummy user.
-        mock_deserialize_instance.side_effect = lambda model, data: DummyUser(
-            **data)
+        mock_deserialize_instance.side_effect = lambda model, data: DummyUser(**data)
 
         fake_session = MagicMock()
         mock_session_local.return_value = fake_session
 
-        result = self.repo.find_user_by_username(
-            self.username, self.cache_model)
+        result = self.repo.find_user_by_username(self.username, self.cache_model)
 
         mock_cache.get.assert_called_with(self.cache_model.key)
         mock_session_local.assert_called_once()
         fake_session.close.assert_called_once()
-        mock_deserialize_instance.assert_called_with(
-            self.repo.model, self.user_dict)
+        mock_deserialize_instance.assert_called_with(self.repo.model, self.user_dict)
         self.assertEqual(result.id, self.user_dict["id"])
         self.assertEqual(result.username, self.user_dict["username"])
         self.assertEqual(result.email, self.user_dict["email"])
@@ -89,8 +91,7 @@ class TestUserRepository(unittest.TestCase):
         fake_session.query.return_value = fake_query_chain
         mock_session_local.return_value = fake_session
 
-        result = self.repo.find_user_by_username(
-            self.username, self.cache_model)
+        result = self.repo.find_user_by_username(self.username, self.cache_model)
 
         mock_session_local.assert_called_once()
         fake_session.query.assert_called_with(self.repo.model)
@@ -100,7 +101,10 @@ class TestUserRepository(unittest.TestCase):
 
         expected_cache_data = json.dumps(self.user_dict, default=str)
         mock_cache.set.assert_called_with(
-            self.cache_model.key, expected_cache_data, timeout=self.cache_model.expiration)
+            self.cache_model.key,
+            expected_cache_data,
+            timeout=self.cache_model.expiration,
+        )
         self.assertEqual(result, self.dummy_user)
         fake_session.close.assert_called_once()
 
@@ -125,7 +129,8 @@ class TestUserRepository(unittest.TestCase):
             self.repo.find_user_by_username(self.username, self.cache_model)
         fake_session.close.assert_called_once()
         self.assertIn(
-            f"User with username {self.username} not found", str(context.exception))
+            f"User with username {self.username} not found", str(context.exception)
+        )
 
     @patch("app.repositories.user_repository.cache")
     @patch("app.repositories.user_repository.SessionLocal")

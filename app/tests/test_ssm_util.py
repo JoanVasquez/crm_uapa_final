@@ -31,12 +31,15 @@ class TestGetCachedParameter(unittest.IsolatedAsyncioTestCase):
 
         with self.assertRaises(Exception) as context:
             await get_cached_parameter("MISSING_PARAM")
-        self.assertIn("Environment variable 'MISSING_PARAM' is not set",
-                      str(context.exception))
+        self.assertIn(
+            "Environment variable 'MISSING_PARAM' is not set", str(context.exception)
+        )
 
     @patch("app.utils.ssm_util.cache")
     @patch("app.utils.ssm_util.boto3.client")
-    async def test_production_fetches_parameter_from_ssm(self, mock_boto_client, mock_cache):
+    async def test_production_fetches_parameter_from_ssm(
+        self, mock_boto_client, mock_cache
+    ):
         # Mock the Redis calls (so we don't have to init a real cache)
         mock_cache.get = AsyncMock(return_value=None)  # Force no cached value
         mock_cache.set = AsyncMock(return_value=None)
@@ -46,9 +49,7 @@ class TestGetCachedParameter(unittest.IsolatedAsyncioTestCase):
 
         # Mock SSM client calls
         fake_ssm = MagicMock()
-        fake_ssm.get_parameter.return_value = {
-            "Parameter": {"Value": "prod_value"}
-        }
+        fake_ssm.get_parameter.return_value = {"Parameter": {"Value": "prod_value"}}
         mock_boto_client.return_value = fake_ssm
 
         result = await get_cached_parameter("TEST_PARAM")
@@ -77,11 +78,9 @@ class TestGetCachedParameter(unittest.IsolatedAsyncioTestCase):
                 "Message": "Invalid credentials",
             }
         }
-        fake_ssm.get_parameter.side_effect = ClientError(
-            error_response, "GetParameter")
+        fake_ssm.get_parameter.side_effect = ClientError(error_response, "GetParameter")
         mock_boto_client.return_value = fake_ssm
 
         with self.assertRaises(Exception) as context:
             await get_cached_parameter("TEST_PARAM")
-        self.assertIn("Could not fetch parameter: TEST_PARAM",
-                      str(context.exception))
+        self.assertIn("Could not fetch parameter: TEST_PARAM", str(context.exception))

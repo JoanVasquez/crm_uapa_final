@@ -4,7 +4,6 @@ from app.utils.http_response import HttpResponse
 
 
 class TestHttpResponse(unittest.TestCase):
-
     def test_success_without_message(self):
         # Arrange
         data = {"key": "value"}
@@ -32,12 +31,7 @@ class TestHttpResponse(unittest.TestCase):
         # Arrange
         message = "Something went wrong"
         code = 500
-        expected = {
-            "success": False,
-            "message": message,
-            "code": code,
-            "details": None
-        }
+        expected = {"success": False, "message": message, "code": code, "details": None}
 
         # Act
         result = HttpResponse.error(message, code)
@@ -54,7 +48,7 @@ class TestHttpResponse(unittest.TestCase):
             "success": False,
             "message": message,
             "code": code,
-            "details": details
+            "details": details,
         }
 
         # Act

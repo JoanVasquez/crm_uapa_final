@@ -5,6 +5,8 @@ from botocore.exceptions import ClientError
 from utils.logger import get_logger
 from utils.ssm_util import get_cached_parameter
 
+from app.errors import BaseAppException
+
 logger = get_logger(__name__)
 
 
@@ -50,6 +52,5 @@ def upload_file(key: str, body: bytes, content_type: str) -> str:
         return location
 
     except ClientError as error:
-        logger.error(f"Error uploading file '{key}' to S3: {error}",
-                     exc_info=True)
-        raise Exception(f"Error uploading file: {error}") from error
+        logger.error(f"Error uploading file '{key}' to S3: {error}", exc_info=True)
+        raise BaseAppException(f"Error uploading file: {error}") from error

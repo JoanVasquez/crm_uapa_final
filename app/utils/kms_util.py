@@ -4,6 +4,7 @@ import os
 import boto3
 from botocore.exceptions import ClientError
 
+from app.errors import BaseAppException
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -23,14 +24,14 @@ def encrypt_password(password: str, kms_key_id: str) -> str:
     :raises Exception: If encryption fails.
     """
     try:
-        response = kms_client.encrypt(KeyId=kms_key_id,
-                                      Plaintext=password.encode("utf-8"))
+        response = kms_client.encrypt(
+            KeyId=kms_key_id, Plaintext=password.encode("utf-8")
+        )
 
         ciphertext_blob = response.get("CiphertextBlob")
         if not ciphertext_blob:
-            logger.error(
-                "Failed to encrypt password: No CiphertextBlob returned")
-            raise Exception("Failed to encrypt password")
+            logger.error("Failed to encrypt password: No CiphertextBlob returned")
+            raise BaseAppException("Failed to encrypt password")
 
         # Encode the ciphertext blob to a base64 string
         encrypted_password = base64.b64encode(ciphertext_blob).decode("utf-8")
@@ -38,7 +39,7 @@ def encrypt_password(password: str, kms_key_id: str) -> str:
 
     except ClientError as error:
         logger.error(f"Error encrypting password: {error}", exc_info=True)
-        raise Exception("Failed to encrypt password") from error
+        raise BaseAppException("Failed to encrypt password") from error
 
 
 def decrypt_password(encrypted_password: str, kms_key_id: str) -> str:
@@ -59,16 +60,15 @@ def decrypt_password(encrypted_password: str, kms_key_id: str) -> str:
     try:
         ciphertext_blob = base64.b64decode(encrypted_password)
 
-        response = kms_client.decrypt(KeyId=kms_key_id,
-                                      CiphertextBlob=ciphertext_blob)
+        response = kms_client.decrypt(KeyId=kms_key_id, CiphertextBlob=ciphertext_blob)
 
         plaintext = response.get("Plaintext")
         if not plaintext:
             logger.error("Failed to decrypt password: No Plaintext returned")
-            raise Exception("Failed to decrypt password")
+            raise BaseAppException("Failed to decrypt password")
 
         return plaintext.decode("utf-8")
 
     except ClientError as error:
         logger.error(f"Error decrypting password: {error}", exc_info=True)
-        raise Exception("Failed to decrypt password") from error
+        raise BaseAppException("Failed to decrypt password") from error

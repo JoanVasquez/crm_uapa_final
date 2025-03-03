@@ -14,7 +14,8 @@ def get_logger(name=__name__):
         # Console handler
         console_handler = logging.StreamHandler()
         formatter = jsonlogger.JsonFormatter(
-            fmt="%(asctime)s %(name)s %(levelname)s %(message)s")
+            fmt="%(asctime)s %(name)s %(levelname)s %(message)s"
+        )
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
 

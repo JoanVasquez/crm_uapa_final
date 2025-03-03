@@ -1,4 +1,5 @@
 import unittest
+
 # Replace 'your_module' with the actual module name
 from app.utils.deserialize_instance import deserialize_instance
 
@@ -11,7 +12,11 @@ class DummyModel:
         self.name = name
 
     def __eq__(self, other):
-        return isinstance(other, DummyModel) and self.id == other.id and self.name == other.name
+        return (
+            isinstance(other, DummyModel)
+            and self.id == other.id
+            and self.name == other.name
+        )
 
     def __repr__(self):
         return f"DummyModel(id={self.id}, name={self.name})"

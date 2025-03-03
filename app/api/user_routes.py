@@ -20,7 +20,8 @@ from app.utils.logger import get_logger
 logger = get_logger(__name__)
 userService = UserService()
 
-router = APIRouter()
+# Using prefix "/users" and tagging all endpoints as "Users"
+router = APIRouter(prefix="/users", tags=["Users"])
 
 
 # ---------------------------
@@ -204,12 +205,12 @@ async def complete_password_reset(
         )
 
 
-@router.get("/user/{user_id}", response_class=JSONResponse)
+@router.get("/{user_id}", response_class=JSONResponse)
 async def get_user_by_id(user_id: int) -> JSONResponse:
     """
     Retrieve a user by their ID.
 
-    If the user_id is missing or the user is not found, returns an appropriate error response.
+    If the user is not found, returns an appropriate error response.
     """
     try:
         if not user_id:
@@ -240,12 +241,12 @@ async def get_user_by_id(user_id: int) -> JSONResponse:
         )
 
 
-@router.put("/user/{user_id}", response_class=JSONResponse)
+@router.put("/{user_id}", response_class=JSONResponse)
 async def update_user(user_id: int, request_body: UpdateUserRequest) -> JSONResponse:
     """
     Update a user by their ID.
 
-    Validates the path parameter and request body, calls the user service to update the user,
+    Validates the request body, calls the user service to update the user,
     and returns the updated user.
     """
     try:

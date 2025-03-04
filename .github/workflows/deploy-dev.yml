@@ -9,7 +9,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: .env.dev
+    environment: dev
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -24,42 +24,47 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: "1.3.0"  # adjust as needed
+          terraform_version: "1.3.0"
 
+      # -- 1) Terraform Init from the ./terraform directory --
       - name: Terraform Init
+        working-directory: ./terraform
         run: |
           terraform init \
             -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
             -backend-config="key=dev/terraform.tfstate" \
             -backend-config="region=${{ secrets.AWS_REGION }}"
 
+      # -- 2) Terraform Plan from the ./terraform directory --
       - name: Terraform Plan
-        run: terraform plan \
-            -var "aws_region=${{ secrets.AWS_REGION }}" \
-            -var "availability_zones=${{ secrets.AVAILABILITY_ZONES }}" \
-            -var "db_name=${{ secrets.DB_NAME }}" \
-            -var "db_username=${{ secrets.DB_USERNAME }}" \
-            -var "db_password=${{ secrets.DB_PASSWORD }}" \
-            -var "ssm_db_name=${{ secrets.SSM_DB_NAME }}" \
-            -var "ssm_db_username=${{ secrets.SSM_DB_USERNAME }}" \
-            -var "ssm_db_password=${{ secrets.SSM_DB_PASSWORD }}" \
-            -var "ssm_db_host=${{ secrets.SSM_DB_HOST }}" \
-            -var "ssm_db_port=${{ secrets.SSM_DB_PORT }}" \
-            -var "s3_bucket_name=${{ secrets.S3_BUCKET_NAME }}" \
-            -var "ssm_cognito_user_pool_id=${{ secrets.SSM_COGNITO_USER_POOL_ID }}" \
-            -var "ssm_cognito_client_id=${{ secrets.SSM_COGNITO_CLIENT_ID }}" \
-            -var "ssm_redis_endpoint=${{ secrets.SSM_REDIS_ENDPOINT }}" \
+        working-directory: ./terraform
+        run: |
+          terraform plan \
+            -var="aws_region=${{ secrets.AWS_REGION }}" \
+            -var="db_name=${{ secrets.DB_NAME }}" \
+            -var="db_username=${{ secrets.DB_USERNAME }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="ssm_db_name=${{ secrets.SSM_DB_NAME }}" \
+            -var="ssm_db_username=${{ secrets.SSM_DB_USERNAME }}" \
+            -var="ssm_db_password=${{ secrets.SSM_DB_PASSWORD }}" \
+            -var="ssm_db_host=${{ secrets.SSM_DB_HOST }}" \
+            -var="ssm_db_port=${{ secrets.SSM_DB_PORT }}" \
+            -var="s3_bucket_name=${{ secrets.S3_BUCKET_NAME }}" \
+            -var="ssm_cognito_user_pool_id=${{ secrets.SSM_COGNITO_USER_POOL_ID }}" \
+            -var="ssm_cognito_client_id=${{ secrets.SSM_COGNITO_CLIENT_ID }}" \
+            -var="ssm_redis_endpoint=${{ secrets.SSM_REDIS_ENDPOINT }}" \
             -out=tfplan
 
+      # -- 3) Terraform Apply from the ./terraform directory --
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main'
+        working-directory: ./terraform
         run: terraform apply -auto-approve tfplan
 
       - name: Create .env.dev file
         run: |
           cat <<EOF > .env.dev
           AWS_REGION=${{ secrets.AWS_REGION }}
-          AVAILABILITY_ZONES=${{ secrets.AVAILABILITY_ZONES }}
           DB_NAME=${{ secrets.DB_NAME }}
           DB_USERNAME=${{ secrets.DB_USERNAME }}
           DB_PASSWORD=${{ secrets.DB_PASSWORD }}

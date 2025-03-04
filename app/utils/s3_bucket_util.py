@@ -2,12 +2,9 @@ import os
 
 import boto3
 from botocore.exceptions import ClientError
-from utils.logger import get_logger
-from utils.ssm_util import get_cached_parameter
 
 from app.errors import BaseAppException
-
-logger = get_logger(__name__)
+from app.utils.ssm_util import get_cached_parameter
 
 
 def upload_file(key: str, body: bytes, content_type: str) -> str:
@@ -24,7 +21,6 @@ def upload_file(key: str, body: bytes, content_type: str) -> str:
         # Retrieve SSM parameters for S3 bucket name and KMS key ID.
         bucket = get_cached_parameter(os.environ.get("S3_BUCKET_NAME"))
         kms_key_id = get_cached_parameter(os.environ.get("S3_KMS_KEY_ID"))
-        logger.info(f"Uploading file with key '{key}.")
 
         # Create an S3 client.
         s3_client = boto3.client("s3")
@@ -48,9 +44,7 @@ def upload_file(key: str, body: bytes, content_type: str) -> str:
         else:
             location = f"https://{bucket}.s3-{region}.amazonaws.com/{key}"
 
-        logger.info(f"File uploaded successfully. Accessible at {location}")
         return location
 
     except ClientError as error:
-        logger.error(f"Error uploading file '{key}' to S3: {error}", exc_info=True)
         raise BaseAppException(f"Error uploading file: {error}") from error

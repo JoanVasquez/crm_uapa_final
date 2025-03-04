@@ -9,7 +9,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: dev
+    environment: .env.test
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3

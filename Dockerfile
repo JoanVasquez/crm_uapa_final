@@ -23,7 +23,9 @@ COPY pyproject.toml poetry.lock* ./
 RUN poetry config virtualenvs.create false && poetry install --only main
 
 # Copy the rest of the application.
-COPY . .
+COPY ./app /app
+
+COPY .env.dev /.env.dev
 
 # Expose port 8000.
 EXPOSE 8000

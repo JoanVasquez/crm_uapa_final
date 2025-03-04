@@ -34,7 +34,8 @@ resource "aws_subnet" "private" {
 
 # NAT Gateway in first public subnet.
 resource "aws_eip" "nat" {
-  vpc = true
+  # Replaces the deprecated 'vpc = true' with domain="vpc"
+  domain = "vpc"
 }
 
 resource "aws_nat_gateway" "nat" {
@@ -80,6 +81,30 @@ resource "aws_ecr_repository" "app_repo" {
 
 resource "aws_ecs_cluster" "main" {
   name = "free-tier-cluster"
+}
+
+# ---------------------------------------------------------------------------
+# ECS Task Execution Role (so Fargate can use awslogs and pull from ECR)
+# ---------------------------------------------------------------------------
+data "aws_iam_policy_document" "ecs_task_execution_assume" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["ecs-tasks.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "ecs_task_execution_role" {
+  name               = "ecsTaskExecutionRole"
+  assume_role_policy = data.aws_iam_policy_document.ecs_task_execution_assume.json
+}
+
+# Attach the AWS-managed policy for pulling images and writing logs
+resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_attachment" {
+  role       = aws_iam_role.ecs_task_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
 # --- RDS MySQL ---
@@ -134,7 +159,7 @@ resource "aws_elasticache_subnet_group" "redis" {
 resource "aws_elasticache_cluster" "redis" {
   cluster_id           = "free-tier-redis"
   engine               = "redis"
-  node_type            = "cache.t2.micro"  # Free tier eligible
+  node_type            = "cache.t2.micro"
   num_cache_nodes      = 1
   parameter_group_name = "default.redis3.2"
   subnet_group_name    = aws_elasticache_subnet_group.redis.name
@@ -164,22 +189,26 @@ resource "aws_security_group" "redis_sg" {
 # --- S3 Bucket for Logs ---
 resource "aws_s3_bucket" "logs" {
   bucket        = var.s3_bucket_name
-  acl           = "private"
   force_destroy = true
   tags = { Name = "free-tier-logs-bucket" }
 }
 
+resource "aws_s3_bucket_acl" "logs_acl" {
+  bucket = aws_s3_bucket.logs.id
+  acl    = "private"
+}
+
 # --- KMS Key ---
 resource "aws_kms_key" "app_key" {
-  description               = "KMS key for encrypting app data"
-  deletion_window_in_days   = 10
+  description             = "KMS key for encrypting app data"
+  deletion_window_in_days = 10
   tags = { Name = "free-tier-app-key" }
 }
 
 # --- AWS Cognito ---
 resource "aws_cognito_user_pool" "user_pool" {
-  name                          = "free-tier-user-pool"
-  auto_verified_attributes      = ["email"]
+  name                     = "free-tier-user-pool"
+  auto_verified_attributes = ["email"]
 }
 
 resource "aws_cognito_user_pool_client" "user_pool_client" {
@@ -249,7 +278,6 @@ resource "aws_apigatewayv2_api" "http_api" {
   protocol_type = "HTTP"
 }
 
-# (For simplicity, we assume the ECS service’s public load balancer is used by API Gateway.)
 resource "aws_apigatewayv2_integration" "ecs_integration" {
   api_id                 = aws_apigatewayv2_api.http_api.id
   integration_type       = "HTTP_PROXY"
@@ -343,12 +371,15 @@ resource "aws_security_group" "ecs_sg" {
   }
 }
 
+# NOTE: Add 'execution_role_arn' so Fargate can pull from ECR & write logs
 resource "aws_ecs_task_definition" "app_task" {
   family                   = "crm-python-simple-task"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = "256"
   memory                   = "512"
+
+  execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
 
   container_definitions = jsonencode([
     {

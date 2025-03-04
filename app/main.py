@@ -12,7 +12,7 @@ from app.api.bill_routes import router as bill_router
 from app.api.product_routes import router as product_router
 from app.api.sell_routes import router as sell_router
 
-# Import your routers
+# Import all your routers
 from app.api.user_routes import router as user_router
 from app.errors import BaseAppException
 from app.utils.cache_util import _initialize_cache, cache
@@ -20,10 +20,17 @@ from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Create the FastAPI app instance
-app = FastAPI()
+# Create the FastAPI app instance with custom metadata for Swagger
+app = FastAPI(
+    title="CMR Python Simple API",
+    description="API for managing users, bills, products, and sell transactions.",
+    version="0.1.0",
+    docs_url="/docs",  # Swagger UI (default)
+    redoc_url="/redoc",  # Redoc (default)
+    openapi_url="/openapi.json",  # OpenAPI schema URL
+)
 
-# Include each router with the top-level prefix "/api/v1"
+# Include your routes under the prefix /api/v1
 app.include_router(user_router, prefix="/api/v1")
 app.include_router(bill_router, prefix="/api/v1")
 app.include_router(product_router, prefix="/api/v1")

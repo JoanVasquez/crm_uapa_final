@@ -281,3 +281,23 @@ class TestUserService(IsolatedAsyncioTestCase):
                 self.test_email, "NewPass", "654321"
             )
         self.assertIn("Failed to complete password reset", str(ctx.exception))
+
+    async def test_verify_token_success(self):
+        """
+        Test that verify_token() returns the decoded token claims as provided
+        by the underlying AuthenticationService.verify_token method.
+        """
+        fake_decoded_token = {
+            "sub": self.test_username,
+            "aud": "dummy_client_id",
+            "iss": "someissuer",
+        }
+        # Patch the verify_token method of the auth_service instance to simulate a successful verification.
+        with patch.object(
+            self.user_service.auth_service,
+            "verify_token",
+            return_value=fake_decoded_token,
+        ) as mock_verify:
+            result = await self.user_service.verify_token("dummy_token")
+            mock_verify.assert_called_once_with("dummy_token")
+            self.assertEqual(result, fake_decoded_token)

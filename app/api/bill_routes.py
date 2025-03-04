@@ -6,47 +6,36 @@ updating, and deletion. All endpoints are protected by JWT authentication using 
 """
 
 from datetime import datetime
-from typing import List, Optional
+from decimal import Decimal
+from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field, condecimal
 
-from app.services.authentication_service import CognitoAuthenticationService
 from app.services.bill_service import BillService
 from app.utils.http_response import HttpResponse
 from app.utils.logger import get_logger
+from app.utils.verify_token_util import verify_token
 
 logger = get_logger(__name__)
-security = HTTPBearer()
 router = APIRouter(prefix="/bills", tags=["Bills"])
 
-
-# Dependency: JWT validation via AWS Cognito
-async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    token = credentials.credentials
-    try:
-        auth_service = CognitoAuthenticationService()
-        user = auth_service.verify_jwt_token(token)
-        return user
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-        ) from e
+# Define a constant for "Bill not found"
+BILL_NOT_FOUND = "Bill not found"
 
 
 # Pydantic models for bill requests/responses
 class BillCreate(BaseModel):
     user_id: int = Field(..., example=1)
     # Optional: let the date default to now if not provided.
-    date: Optional[datetime] = Field(default_factory=datetime.utcnow)
-    total_amount: condecimal(gt=0) = Field(..., example=100.00)
+    total_amount: Decimal = Field(..., gt=0, example=100.00)
 
 
 class BillUpdate(BaseModel):
-    total_amount: Optional[condecimal(gt=0)] = Field(None, example=150.00)
+    total_amount: Optional[Annotated[Decimal, condecimal(gt=Decimal("0"))]] = Field(
+        None, example=150.00
+    )
 
 
 class BillResponse(BaseModel):
@@ -111,14 +100,17 @@ async def get_bill(bill_id: int, user=Depends(verify_token)) -> JSONResponse:
     try:
         bill = bill_service.get_bill_by_id(bill_id)
         if not bill:
+            logger.warning("%s: %s", BILL_NOT_FOUND, bill_id)
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Bill not found",
+                detail=BILL_NOT_FOUND,
             )
         return JSONResponse(
             content=HttpResponse.success(bill, "Bill retrieved successfully"),
             status_code=status.HTTP_200_OK,
         )
+    except HTTPException as http_exc:
+        raise http_exc
     except Exception as error:
         logger.error("[BillController] Failed to retrieve bill", exc_info=True)
         raise HTTPException(
@@ -140,14 +132,17 @@ async def update_bill(
     try:
         updated_bill = bill_service.update_bill(bill_id, bill.dict(exclude_unset=True))
         if not updated_bill:
+            logger.warning("%s: %s", BILL_NOT_FOUND, bill_id)
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Bill not found",
+                detail=BILL_NOT_FOUND,
             )
         return JSONResponse(
             content=HttpResponse.success(updated_bill, "Bill updated successfully"),
             status_code=status.HTTP_200_OK,
         )
+    except HTTPException as http_exc:
+        raise http_exc
     except Exception as error:
         logger.error("[BillController] Failed to update bill", exc_info=True)
         raise HTTPException(
@@ -167,14 +162,17 @@ async def delete_bill(bill_id: int, user=Depends(verify_token)) -> JSONResponse:
     try:
         success = bill_service.delete_bill(bill_id)
         if not success:
+            logger.warning("%s: %s", BILL_NOT_FOUND, bill_id)
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Bill not found",
+                detail=BILL_NOT_FOUND,
             )
         return JSONResponse(
             content=HttpResponse.success(None, "Bill deleted successfully"),
             status_code=status.HTTP_200_OK,
         )
+    except HTTPException as http_exc:
+        raise http_exc
     except Exception as error:
         logger.error("[BillController] Failed to delete bill", exc_info=True)
         raise HTTPException(

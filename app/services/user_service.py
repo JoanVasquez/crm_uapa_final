@@ -1,10 +1,4 @@
-"""User service module.
-
-This module implements the UserService class, which provides asynchronous methods
-for registering users, confirming registration, authentication, and password resets.
-It leverages the underlying UserRepository, AuthenticationService, and PasswordService.
-"""
-
+import asyncio
 import json
 from typing import Any, Dict, Optional
 
@@ -277,4 +271,35 @@ class UserService(GenericService[User]):
             )
             raise BaseAppException(
                 "Failed to complete password reset", details=str(error)
+            ) from error
+
+    async def verify_token(self, token: str) -> Dict[str, Any]:
+        """
+        Asynchronously verify a JWT token using the AuthenticationService's verify method.
+
+        This method delegates the token verification to the AuthenticationService and returns
+        the decoded token claims.
+
+        Args:
+            token (str): The JWT token to verify.
+
+        Returns:
+            Dict[str, Any]: The decoded token claims if verification is successful.
+
+        Raises:
+            BaseAppException: If token verification fails.
+        """
+        try:
+            decoded_token = await asyncio.to_thread(
+                self.auth_service.verify_token, token
+            )
+            logger.info("[UserService] Token verified successfully")
+            return decoded_token
+        except Exception as error:
+            logger.error(
+                "[UserService] Token verification failed",
+                exc_info=True,
+            )
+            raise BaseAppException(
+                "Token verification failed", details=str(error)
             ) from error

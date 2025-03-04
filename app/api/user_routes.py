@@ -3,8 +3,6 @@ User API routes.
 
 This module defines API endpoints for user registration, confirmation, authentication,
 password reset, retrieval, and updates.
-
-# pylint: disable=broad-exception-caught
 """
 
 from typing import Optional
@@ -20,7 +18,6 @@ from app.utils.logger import get_logger
 logger = get_logger(__name__)
 userService = UserService()
 
-# Using prefix "/users" and tagging all endpoints as "Users"
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
@@ -79,13 +76,11 @@ class UpdateUserRequest(BaseModel):
 async def register_user(request_body: RegisterUserRequest) -> JSONResponse:
     """
     Register a new user.
-
-    Converts the request body to a dictionary and calls the user service to register
-    the user. Returns a JSON response with a success message, or an error response on failure.
     """
     try:
         user_data = request_body.dict()
-        response = userService.save(user_data)
+        # Await the asynchronous save call.
+        response = await userService.save(user_data)
         return JSONResponse(
             content=HttpResponse.success(response, "User registered successfully"),
             status_code=status.HTTP_200_OK,
@@ -104,12 +99,11 @@ async def confirm_user_registration(
 ) -> JSONResponse:
     """
     Confirm user registration.
-
-    Validates the request and calls the user service to confirm the user's registration.
     """
     try:
         data = request_body.dict()
-        response = userService.confirm_registration(
+        # Await the asynchronous confirmation call.
+        response = await userService.confirm_registration(
             data["email"], data["confirmationCode"]
         )
         return JSONResponse(
@@ -128,12 +122,11 @@ async def confirm_user_registration(
 async def authenticate_user(request_body: AuthenticateUserRequest) -> JSONResponse:
     """
     Authenticate a user.
-
-    Extracts email and password from the request and calls the user service to authenticate.
     """
     try:
         data = request_body.dict()
-        response = userService.authenticate(data["email"], data["password"])
+        # Await the asynchronous authenticate call.
+        response = await userService.authenticate(data["email"], data["password"])
         return JSONResponse(
             content=HttpResponse.success(response, "Authentication successful"),
             status_code=status.HTTP_200_OK,
@@ -152,12 +145,11 @@ async def initiate_password_reset(
 ) -> JSONResponse:
     """
     Initiate password reset.
-
-    Calls the user service to initiate a password reset process.
     """
     try:
         data = request_body.dict()
-        response = userService.initiate_password_reset(data["email"])
+        # Await the asynchronous password reset initiation.
+        response = await userService.initiate_password_reset(data["email"])
         return JSONResponse(
             content=HttpResponse.success(
                 response, "Password reset initiated successfully"
@@ -180,13 +172,11 @@ async def complete_password_reset(
 ) -> JSONResponse:
     """
     Complete password reset.
-
-    Completes the password reset process by validating the confirmation code and updating
-    the password.
     """
     try:
         data = request_body.dict()
-        response = userService.complete_password_reset(
+        # Await the asynchronous complete password reset call.
+        response = await userService.complete_password_reset(
             data["email"], data["newPassword"], data["confirmationCode"]
         )
         return JSONResponse(
@@ -209,8 +199,6 @@ async def complete_password_reset(
 async def get_user_by_id(user_id: int) -> JSONResponse:
     """
     Retrieve a user by their ID.
-
-    If the user is not found, returns an appropriate error response.
     """
     try:
         if not user_id:
@@ -219,7 +207,6 @@ async def get_user_by_id(user_id: int) -> JSONResponse:
                 content=HttpResponse.error("User ID is required", 400),
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
-
         user = userService.find_by_id(user_id)
         if not user:
             logger.warning("[UserController] User not found with ID: %s", user_id)
@@ -227,7 +214,6 @@ async def get_user_by_id(user_id: int) -> JSONResponse:
                 content=HttpResponse.error("User not found", 404),
                 status_code=status.HTTP_404_NOT_FOUND,
             )
-
         logger.info("[UserController] User retrieved successfully with ID: %s", user_id)
         return JSONResponse(
             content=HttpResponse.success(user, "User retrieved successfully"),
@@ -245,9 +231,6 @@ async def get_user_by_id(user_id: int) -> JSONResponse:
 async def update_user(user_id: int, request_body: UpdateUserRequest) -> JSONResponse:
     """
     Update a user by their ID.
-
-    Validates the request body, calls the user service to update the user,
-    and returns the updated user.
     """
     try:
         if not user_id:
@@ -256,7 +239,6 @@ async def update_user(user_id: int, request_body: UpdateUserRequest) -> JSONResp
                 content=HttpResponse.error("User ID is required", 400),
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
-
         updated_data = request_body.dict(exclude_unset=True)
         if not updated_data:
             logger.warning("[UserController] Missing update data")
@@ -264,7 +246,6 @@ async def update_user(user_id: int, request_body: UpdateUserRequest) -> JSONResp
                 content=HttpResponse.error("Update data is required", 400),
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
-
         updated_user = userService.update(user_id, updated_data)
         if not updated_user:
             logger.warning(
@@ -274,7 +255,6 @@ async def update_user(user_id: int, request_body: UpdateUserRequest) -> JSONResp
                 content=HttpResponse.error("User not found", 404),
                 status_code=status.HTTP_404_NOT_FOUND,
             )
-
         logger.info("[UserController] User updated successfully with ID: %s", user_id)
         return JSONResponse(
             content=HttpResponse.success(updated_user, "User updated successfully"),

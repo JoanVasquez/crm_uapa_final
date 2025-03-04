@@ -6,48 +6,40 @@ retrieving sells (list and by ID), updating, and deleting sells. All endpoints a
 by JWT authentication using AWS Cognito.
 """
 
-from typing import List, Optional
+from decimal import Decimal
+from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field, condecimal, conint
 
-from app.services.authentication_service import CognitoAuthenticationService
 from app.services.sell_service import SellService
 from app.utils.http_response import HttpResponse
 from app.utils.logger import get_logger
+from app.utils.verify_token_util import verify_token
 
 logger = get_logger(__name__)
-security = HTTPBearer()
 router = APIRouter(prefix="/sells", tags=["Sells"])
 
-
-# Dependency to validate JWT using AWS Cognito
-async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    token = credentials.credentials
-    try:
-        auth_service = CognitoAuthenticationService()
-        user = auth_service.verify_jwt_token(token)
-        return user
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-        ) from e
+# Define a constant for "Sell not found"
+SELL_NOT_FOUND = "Sell not found"
 
 
 # Pydantic models for sell requests/responses
 class SellCreate(BaseModel):
     bill_id: int = Field(..., example=1)
     product_id: int = Field(..., example=2)
-    quantity: conint(gt=0) = Field(..., example=3)
-    sale_price: condecimal(gt=0) = Field(..., example=19.99)
+    quantity: Annotated[int, conint(gt=0)] = Field(..., example=3)
+    sale_price: Annotated[Decimal, condecimal(gt=Decimal("0"))] = Field(
+        ..., example=19.99
+    )
 
 
 class SellUpdate(BaseModel):
-    quantity: Optional[conint(gt=0)] = Field(None, example=5)
-    sale_price: Optional[condecimal(gt=0)] = Field(None, example=18.99)
+    quantity: Optional[Annotated[int, conint(gt=0)]] = Field(None, example=5)
+    sale_price: Optional[Annotated[Decimal, condecimal(gt=Decimal("0"))]] = Field(
+        None, example=18.99
+    )
 
 
 class SellResponse(BaseModel):
@@ -111,14 +103,17 @@ async def get_sell(sell_id: int, user=Depends(verify_token)) -> JSONResponse:
     try:
         sell_record = sell_service.get_sell_by_id(sell_id)
         if not sell_record:
+            logger.warning("Sell not found: %s", sell_id)
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Sell not found",
+                detail=SELL_NOT_FOUND,
             )
         return JSONResponse(
             content=HttpResponse.success(sell_record, "Sell retrieved successfully"),
             status_code=status.HTTP_200_OK,
         )
+    except HTTPException as http_exc:
+        raise http_exc
     except Exception as error:
         logger.error("[SellController] Failed to retrieve sell", exc_info=True)
         raise HTTPException(
@@ -140,14 +135,17 @@ async def update_sell(
     try:
         updated_sell = sell_service.update_sell(sell_id, sell.dict(exclude_unset=True))
         if not updated_sell:
+            logger.warning("%s: %s", SELL_NOT_FOUND, sell_id)
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Sell not found",
+                detail=SELL_NOT_FOUND,
             )
         return JSONResponse(
             content=HttpResponse.success(updated_sell, "Sell updated successfully"),
             status_code=status.HTTP_200_OK,
         )
+    except HTTPException as http_exc:
+        raise http_exc
     except Exception as error:
         logger.error("[SellController] Failed to update sell", exc_info=True)
         raise HTTPException(
@@ -165,14 +163,18 @@ async def delete_sell(sell_id: int, user=Depends(verify_token)) -> JSONResponse:
     try:
         success = sell_service.delete_sell(sell_id)
         if not success:
+            logger.warning("Sell not found: %s", sell_id)
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Sell not found",
+                detail=SELL_NOT_FOUND,
             )
         return JSONResponse(
             content=HttpResponse.success(None, "Sell deleted successfully"),
             status_code=status.HTTP_200_OK,
         )
+    except HTTPException as http_exc:
+        # Re-raise HTTPException so that a 404 remains a 404.
+        raise http_exc
     except Exception as error:
         logger.error("[SellController] Failed to delete sell", exc_info=True)
         raise HTTPException(

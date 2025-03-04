@@ -2,6 +2,13 @@
 Module for testing the AuthenticationService.
 """
 
+import sys
+from unittest.mock import MagicMock
+
+if "requests" not in sys.modules:
+    sys.modules["requests"] = MagicMock()
+if "jwt" not in sys.modules:
+    sys.modules["jwt"] = MagicMock()
 import unittest
 from unittest.mock import call, patch
 
@@ -137,3 +144,68 @@ class TestAuthenticationService(unittest.TestCase):
             )
         self.assertIn("User confirmation failed", str(context.exception))
         mock_confirm.assert_called_once_with(self.username, self.confirmation_code)
+
+        @patch(
+            "app.services.authentication_service.get_cached_parameter",
+            new_callable=unittest.mock.Mock,
+        )
+        @patch(
+            "app.services.authentication_service.jwt.algorithms.RSAAlgorithm.from_jwk"
+        )
+        @patch("app.services.authentication_service.jwt.get_unverified_header")
+        @patch("app.services.authentication_service.jwt.decode")
+        @patch("app.services.authentication_service.requests.get")
+        def test_verify_token_invalid_audience(
+            self,
+            mock_requests_get,
+            mock_jwt_decode,
+            mock_get_unverified_header,
+            mock_from_jwk,
+            mock_get_cached,
+        ):
+            """
+            Test that verify_token raises an UnauthorizedError when jwt.decode fails
+            due to an invalid audience (or similar audience-related error).
+            """
+            with patch.dict(
+                "os.environ",
+                {
+                    "AWS_REGION": "us-east-1",
+                    "COGNITO_USER_POOL_ID": "us-east-1_example",
+                    "COGNITO_CLIENT_ID_SSM_PATH": "dummy_path",
+                },
+            ):
+                # Set up get_cached_parameter to return expected values.
+                def get_cached_side_effect(param):
+                    if param == "us-east-1_example":
+                        return "us-east-1_example"
+                    elif param == "dummy_path":
+                        return "expected_client_id"
+                    return param
+
+                mock_get_cached.side_effect = get_cached_side_effect
+
+                # Set up a fake JWKS response.
+                fake_jwks = {
+                    "keys": [
+                        {"kid": "fake_kid", "alg": "RS256", "e": "AQAB", "n": "dummy_n"}
+                    ]
+                }
+                fake_response = unittest.mock.MagicMock()
+                fake_response.json.return_value = fake_jwks
+                fake_response.raise_for_status.return_value = None
+                mock_requests_get.return_value = fake_response
+
+                # Simulate a token header with the expected key ID.
+                mock_get_unverified_header.return_value = {"kid": "fake_kid"}
+                # Simulate extraction of the public key.
+                mock_from_jwk.return_value = "fake_key"
+                # Simulate jwt.decode raising an exception (e.g. due to an invalid audience).
+                mock_jwt_decode.side_effect = Exception("Invalid audience")
+
+                with self.assertRaises(UnauthorizedError) as context:
+                    self.auth_service.verify_token("dummy_token")
+                self.assertIn(
+                    "Token verification failed: Invalid audience",
+                    str(context.exception),
+                )

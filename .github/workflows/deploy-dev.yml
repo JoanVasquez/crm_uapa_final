@@ -37,7 +37,6 @@ jobs:
         run: terraform plan \
             -var "aws_region=${{ secrets.AWS_REGION }}" \
             -var "availability_zones=${{ secrets.AVAILABILITY_ZONES }}" \
-            -var "allowed_cidrs=${{ secrets.ALLOWED_CIDRS }}" \
             -var "db_name=${{ secrets.DB_NAME }}" \
             -var "db_username=${{ secrets.DB_USERNAME }}" \
             -var "db_password=${{ secrets.DB_PASSWORD }}" \
@@ -61,7 +60,6 @@ jobs:
           cat <<EOF > .env.dev
           AWS_REGION=${{ secrets.AWS_REGION }}
           AVAILABILITY_ZONES=${{ secrets.AVAILABILITY_ZONES }}
-          ALLOWED_CIDRS=${{ secrets.ALLOWED_CIDRS }}
           DB_NAME=${{ secrets.DB_NAME }}
           DB_USERNAME=${{ secrets.DB_USERNAME }}
           DB_PASSWORD=${{ secrets.DB_PASSWORD }}

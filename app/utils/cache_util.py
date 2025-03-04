@@ -5,6 +5,7 @@ import redis.asyncio as redis
 
 from app.errors import BaseAppException
 from app.utils.logger import get_logger
+from app.utils.ssm_util import get_cached_parameter  # must be async!
 
 logger = get_logger(__name__)
 
@@ -55,22 +56,29 @@ class Cache:
 
 async def init_cache() -> Cache:
     """
-    Initialize the Redis client using the URL from SSM (for production) or
-    directly from an environment variable (for local/test) and return a Cache
-    instance.
+    Initialize the Redis client using the URL from SSM (for production/dev) or
+    directly from an environment variable (for test or fallback) and return a Cache instance.
+    If running in production or dev mode and the environment variable SSM_REDIS_URL is set,
+    the Redis URL is fetched asynchronously from SSM.
     """
     try:
-        redis_url = None
         env = os.environ.get("DJANGO_ENV", "").lower()
-        if env == "test":
+        redis_url = None
+        if env in ["prod", "dev"]:
+            # Try to get the SSM parameter name for Redis URL
+            ssm_param_name = os.environ.get("SSM_REDIS_URL")
+            if ssm_param_name:
+                redis_url = await get_cached_parameter(ssm_param_name)
+            else:
+                redis_url = os.environ.get("REDIS_URL")
+        elif env == "test":
             redis_url = os.environ.get("REDIS_URL_TEST")
         else:
-            redis_url = os.environ.get("REDIS_URL")
+            # Fallback to local env variable
+            redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
 
         if not redis_url:
-            raise BaseAppException(
-                "Environment variable 'REDIS_URL | REDIS_URL_TEST' is not set"
-            )
+            raise BaseAppException("Redis URL not set in environment variables or SSM")
         logger.info(f"[init_cache] Using Redis URL: {redis_url}")
         client = redis.Redis.from_url(redis_url)
         await client.ping()

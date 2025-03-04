@@ -22,7 +22,7 @@ logger = get_logger(__name__)
 
 # Create the FastAPI app instance with custom metadata for Swagger
 app = FastAPI(
-    title="CMR Python Simple API",
+    title="CRM Python Simple API",
     description="API for managing users, bills, products, and sell transactions.",
     version="0.1.0",
     docs_url="/docs",  # Swagger UI (default)

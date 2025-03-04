@@ -34,7 +34,7 @@ class TestPasswordService(unittest.IsolatedAsyncioTestCase):
 
         result = await self.service.get_password_encrypted(self.new_password)
 
-        mock_get_param.assert_called_once_with("/myapp/kms-key-id")
+        mock_get_param.assert_called_once_with("/crm/kms-key-id")
         mock_encrypt.assert_called_once_with(self.new_password, self.kms_key_id)
         self.assertEqual(result, self.encrypted_password)
 

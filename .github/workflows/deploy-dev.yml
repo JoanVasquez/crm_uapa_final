@@ -1,0 +1,96 @@
+name: Deploy to DEV
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: "1.3.0"  # adjust as needed
+
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=dev/terraform.tfstate" \
+            -backend-config="region=${{ secrets.AWS_REGION }}"
+
+      - name: Terraform Plan
+        run: terraform plan \
+            -var "aws_region=${{ secrets.AWS_REGION }}" \
+            -var "availability_zones=${{ secrets.AVAILABILITY_ZONES }}" \
+            -var "allowed_cidrs=${{ secrets.ALLOWED_CIDRS }}" \
+            -var "db_name=${{ secrets.DB_NAME }}" \
+            -var "db_username=${{ secrets.DB_USERNAME }}" \
+            -var "db_password=${{ secrets.DB_PASSWORD }}" \
+            -var "ssm_db_name=${{ secrets.SSM_DB_NAME }}" \
+            -var "ssm_db_username=${{ secrets.SSM_DB_USERNAME }}" \
+            -var "ssm_db_password=${{ secrets.SSM_DB_PASSWORD }}" \
+            -var "ssm_db_host=${{ secrets.SSM_DB_HOST }}" \
+            -var "ssm_db_port=${{ secrets.SSM_DB_PORT }}" \
+            -var "s3_bucket_name=${{ secrets.S3_BUCKET_NAME }}" \
+            -var "ssm_cognito_user_pool_id=${{ secrets.SSM_COGNITO_USER_POOL_ID }}" \
+            -var "ssm_cognito_client_id=${{ secrets.SSM_COGNITO_CLIENT_ID }}" \
+            -var "ssm_redis_endpoint=${{ secrets.SSM_REDIS_ENDPOINT }}" \
+            -out=tfplan
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main'
+        run: terraform apply -auto-approve tfplan
+
+      - name: Create .env.dev file
+        run: |
+          cat <<EOF > .env.dev
+          AWS_REGION=${{ secrets.AWS_REGION }}
+          AVAILABILITY_ZONES=${{ secrets.AVAILABILITY_ZONES }}
+          ALLOWED_CIDRS=${{ secrets.ALLOWED_CIDRS }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          DB_USERNAME=${{ secrets.DB_USERNAME }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          SSM_DB_NAME=${{ secrets.SSM_DB_NAME }}
+          SSM_DB_USERNAME=${{ secrets.SSM_DB_USERNAME }}
+          SSM_DB_PASSWORD=${{ secrets.SSM_DB_PASSWORD }}
+          SSM_DB_HOST=${{ secrets.SSM_DB_HOST }}
+          SSM_DB_PORT=${{ secrets.SSM_DB_PORT }}
+          S3_BUCKET_NAME=${{ secrets.S3_BUCKET_NAME }}
+          SSM_COGNITO_USER_POOL_ID=${{ secrets.SSM_COGNITO_USER_POOL_ID }}
+          SSM_COGNITO_CLIENT_ID=${{ secrets.SSM_COGNITO_CLIENT_ID }}
+          SSM_REDIS_ENDPOINT=${{ secrets.SSM_REDIS_ENDPOINT }}
+          EOF
+
+      - name: Build Docker Image
+        run: |
+          docker build -t ${{ secrets.ECR_REPOSITORY }}:latest .
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Tag and Push Docker Image
+        run: |
+          docker tag ${{ secrets.ECR_REPOSITORY }}:latest ${{ secrets.ECR_REPOSITORY }}:latest
+          docker push ${{ secrets.ECR_REPOSITORY }}:latest
+
+      - name: Deploy to ECS
+        run: |
+          aws ecs update-service \
+            --cluster ${{ secrets.ECS_CLUSTER }} \
+            --service ${{ secrets.ECS_SERVICE }} \
+            --force-new-deployment

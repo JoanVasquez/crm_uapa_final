@@ -1,4 +1,5 @@
-"""Main application entry point.
+"""
+Main application entry point.
 
 This module creates and configures the FastAPI application, including exception handlers,
 startup and shutdown events, and route inclusion.
@@ -7,6 +8,11 @@ startup and shutdown events, and route inclusion.
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from app.api.bill_routes import router as bill_router
+from app.api.product_routes import router as product_router
+from app.api.sell_routes import router as sell_router
+
+# Import your routers
 from app.api.user_routes import router as user_router
 from app.errors import BaseAppException
 from app.utils.cache_util import _initialize_cache, cache
@@ -14,20 +20,20 @@ from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+# Create the FastAPI app instance
 app = FastAPI()
+
+# Include each router with the top-level prefix "/api/v1"
+app.include_router(user_router, prefix="/api/v1")
+app.include_router(bill_router, prefix="/api/v1")
+app.include_router(product_router, prefix="/api/v1")
+app.include_router(sell_router, prefix="/api/v1")
 
 
 @app.exception_handler(BaseAppException)
 async def base_app_exception_handler(_request: Request, exc: BaseAppException):
     """
     Handle BaseAppException by logging the error and returning a JSON error response.
-
-    Args:
-        _request (Request): The incoming request (unused).
-        exc (BaseAppException): The exception instance.
-
-    Returns:
-        JSONResponse: The response containing error details.
     """
     logger.error("[BaseAppException] %s", exc.message, exc_info=True)
     return JSONResponse(
@@ -44,13 +50,6 @@ async def base_app_exception_handler(_request: Request, exc: BaseAppException):
 async def generic_exception_handler(_request: Request, exc: Exception):
     """
     Handle uncaught exceptions by logging the error and returning a generic JSON error response.
-
-    Args:
-        _request (Request): The incoming request (unused).
-        exc (Exception): The exception instance.
-
-    Returns:
-        JSONResponse: The response containing generic error details.
     """
     logger.error("[Unhandled Exception]", exc_info=True)
     return JSONResponse(
@@ -85,9 +84,6 @@ async def shutdown_event():
         await cache.client.close()
         print("Redis connection closed.")
 
-
-# Include the user router with a prefix and tags.
-app.include_router(user_router, prefix="/api/users", tags=["users"])
 
 if __name__ == "__main__":
     import uvicorn

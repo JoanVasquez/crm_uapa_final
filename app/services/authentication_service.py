@@ -12,7 +12,6 @@ import jwt
 import requests
 
 from app.errors import BaseAppException, UnauthorizedError
-from app.utils.cache_util import cache
 from app.utils.cognito_util import authenticate as cognito_authenticate
 from app.utils.cognito_util import (
     confirm_user_registration as cognito_confirm_user_registration,
@@ -33,6 +32,8 @@ class AuthenticationService:
     """Service for handling user authentication and registration using Cognito."""
 
     def register_user(self, username: str, password: str, email: str) -> None:
+        from app.utils.cache_util import cache
+
         """
         Register a new user using Cognito.
 
@@ -120,6 +121,8 @@ class AuthenticationService:
             ) from error
 
     def verify_token(self, token: str) -> dict:
+        from app.utils.cache_util import cache
+
         """
         Verify the provided JWT token by checking its signature and claims.
 

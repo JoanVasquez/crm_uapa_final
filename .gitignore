@@ -151,21 +151,8 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-# ================================
-# Node / Frontend Related Ignores
-# ================================
 
-# Ignore node_modules in any subfolder
-**/node_modules/
-
-# If you want to ignore log files from npm or yarn (optional)
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Typically, package-lock.json (or yarn.lock) files should be committed to help ensure reproducible installs.
-# If you really want to ignore package-lock.json, uncomment the following line:
-# **/package-lock.json
+assume-role-policy.json
 
 # ================================
 # End of .gitignore

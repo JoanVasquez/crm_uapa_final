@@ -30,11 +30,13 @@ app = FastAPI(
     openapi_url="/openapi.json",  # OpenAPI schema URL
 )
 
+_API_PREFIX = "/api/v1"
+
 # Include your routes under the prefix /api/v1
-app.include_router(user_router, prefix="/api/v1")
-app.include_router(bill_router, prefix="/api/v1")
-app.include_router(product_router, prefix="/api/v1")
-app.include_router(sell_router, prefix="/api/v1")
+app.include_router(user_router, prefix=_API_PREFIX)
+app.include_router(bill_router, prefix=_API_PREFIX)
+app.include_router(product_router, prefix=_API_PREFIX)
+app.include_router(sell_router, prefix=_API_PREFIX)
 
 
 @app.exception_handler(BaseAppException)

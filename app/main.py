@@ -22,7 +22,7 @@ logger = get_logger(__name__)
 
 # Create the FastAPI app instance with custom metadata for Swagger
 app = FastAPI(
-    title="CMR Python Simple API",
+    title="CRM Python Simple API",
     description="API for managing users, bills, products, and sell transactions.",
     version="0.1.0",
     docs_url="/docs",  # Swagger UI (default)
@@ -30,11 +30,13 @@ app = FastAPI(
     openapi_url="/openapi.json",  # OpenAPI schema URL
 )
 
+_API_PREFIX = "/api/v1"
+
 # Include your routes under the prefix /api/v1
-app.include_router(user_router, prefix="/api/v1")
-app.include_router(bill_router, prefix="/api/v1")
-app.include_router(product_router, prefix="/api/v1")
-app.include_router(sell_router, prefix="/api/v1")
+app.include_router(user_router, prefix=_API_PREFIX)
+app.include_router(bill_router, prefix=_API_PREFIX)
+app.include_router(product_router, prefix=_API_PREFIX)
+app.include_router(sell_router, prefix=_API_PREFIX)
 
 
 @app.exception_handler(BaseAppException)

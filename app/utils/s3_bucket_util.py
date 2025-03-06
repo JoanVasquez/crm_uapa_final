@@ -19,8 +19,8 @@ def upload_file(key: str, body: bytes, content_type: str) -> str:
     """
     try:
         # Retrieve SSM parameters for S3 bucket name and KMS key ID.
-        bucket = get_cached_parameter(os.environ.get("S3_BUCKET_NAME"))
-        kms_key_id = get_cached_parameter(os.environ.get("S3_KMS_KEY_ID"))
+        bucket = get_cached_parameter(os.environ.get("SSM_S3_BUCKET_NAME"))
+        kms_key_id = get_cached_parameter(os.environ.get("SSM_S3_KMS_KEY_ID"))
 
         # Create an S3 client.
         s3_client = boto3.client("s3")

@@ -21,8 +21,8 @@ class TestCognitoService(unittest.TestCase):
         The test relies on environment variables defined in .env.test.
         """
         self.fake_ssm_params = {
-            "/myapp/cognito/client-id": "fake-client-id",
-            "/myapp/cognito/user-pool-id": "fake-user-pool-id",
+            "/crm/cognito/client-id": "fake-client-id",
+            "/crm/cognito/user-pool-id": "fake-user-pool-id",
         }
 
     def fake_get_cached_parameter(self, param):
@@ -39,7 +39,7 @@ class TestCognitoService(unittest.TestCase):
 
     def tearDown(self):
         """Reset environment variables for subsequent tests."""
-        os.environ["COGNITO_CLIENT_ID_SSM_PATH"] = "/myapp/cognito/client-id"
+        os.environ["COGNITO_CLIENT_ID_SSM_PATH"] = "/crm/cognito/client-id"
 
     @patch("app.utils.cognito_util.cognito_client")
     @patch("app.utils.cognito_util.get_cached_parameter", new_callable=MagicMock)

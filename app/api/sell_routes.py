@@ -19,6 +19,7 @@ from app.utils.logger import get_logger
 from app.utils.verify_token_util import verify_token
 
 logger = get_logger(__name__)
+
 router = APIRouter(prefix="/sells", tags=["Sells"])
 
 # Define a constant for "Sell not found"
